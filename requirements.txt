@@ -1,6 +1,7 @@
 flask
 pandas
+matplotlib
 numpy
+seaborn
 joblib
 scikit-learn
-pickle

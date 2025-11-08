@@ -6,6 +6,8 @@ FROM python:3.11-slim AS base
 # Evita que Python genere archivos .pyc y que use buffering (mejor para logs)
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
 
 # Establece el directorio de trabajo dentro del contenedor
 WORKDIR /app
@@ -20,7 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expón el puerto en el que correrá Flask
-EXPOSE 5000
+EXPOSE 8000
 
 # Establece una variable de entorno para Flask (opcional pero recomendado)
 ENV FLASK_APP=app/app.py

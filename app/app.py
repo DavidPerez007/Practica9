@@ -3,9 +3,13 @@ import queue
 import threading
 import pickle
 from flask import Flask, jsonify, request
+import joblib
 import numpy as np
 from threading import Semaphore, Lock
-from model.SimpleAdaBoost import SimpleAdaBoost 
+from model.adaboost_custom import SimpleAdaBoost 
+from joblib import load
+from utils.DataTransformation import *
+
 
 
 
@@ -14,8 +18,9 @@ model_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file
 if not os.path.exists(model_path):
     raise FileNotFoundError(f"No se encontró el modelo en {model_path}")
 
-with open("./model/modelo.pkl", "rb") as f:
-    model = pickle.load(f)
+model = load("./model/modelo.pkl")
+
+
 
 if model is None:
     raise ValueError("El modelo cargado es None")
@@ -44,38 +49,26 @@ def health():
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
-        # Obtiene los datos enviados en JSON
+        feature_columns = load("./model/feature_columns.pkl")
+        scaler = load("./model/scaler.pkl")
+        poly = load("./model/poly.pkl")
         data = request.get_json()
         features = data.get("features")
 
         if features is None:
             return jsonify({"error": "No se proporcionaron características"}), 400
 
-        sex_map = {"male": 0, "female": 1}
-        sex = sex_map.get(features.get("sex"), 0)
+        df = pd.DataFrame([features])
+        df_processed = preprocess_for_prediction(df, scaler=scaler, poly=poly, feature_columns=feature_columns)
+        prediction = model.predict(df_processed)
 
-        embarked_q = 1 if features.get("embarked") == "Q" else 0
-        embarked_s = 1 if features.get("embarked") == "S" else 0
-
-        features_array = np.array([
-            features.get("pclass"),
-            sex,
-            features.get("age"),
-            features.get("sibsp"),
-            features.get("parch"),
-            features.get("fare"),
-            embarked_q,
-            embarked_s
-        ]).reshape(1, -1)
-
-        # ==== 2. Predicción ====
-        prediction = model.predict(features_array)
-
-        # ==== 3. Respuesta ====
         return jsonify({"prediction": int(prediction[0])})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+
 
 @app.route('/info', methods=['GET'])
 def info():
@@ -84,5 +77,5 @@ def info():
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port, debug=True)
